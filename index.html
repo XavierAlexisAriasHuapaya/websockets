@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat WebSocket</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+<body>
+    <input type="text" id="message" placeholder="Escribe un mensaje..." />
+    <button onclick="sendMessage()">Enviar</button>
+
+    <div id="messageArea"></div>
+
+    <script>
+        var stompClient = null;
+
+        function connect() {
+            console.log("Intentando conectar al WebSocket...");
+            var socket = new SockJS('http://localhost:8080/chat-websocket');
+            stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, function (frame) {
+                console.log('Conectado: ' + frame);
+
+                stompClient.subscribe('/topic/public', function (message) {
+                    showMessage(JSON.parse(message.body));
+                });
+            }, function (error) {
+                console.error("Error al conectar con WebSocket:", error);
+            });
+        }
+
+        function sendMessage() {
+            if (stompClient && stompClient.connected) {
+                var messageContent = document.getElementById("message").value.trim();
+
+                if (messageContent) {
+                    var chatMessage = {
+                        sender: "User",
+                        content: messageContent,
+                        type: 'CHAT'
+                    };
+                    stompClient.send("/app/chat", {}, JSON.stringify(chatMessage));
+                    console.log("Mensaje enviado:", chatMessage);
+                    document.getElementById("message").value = '';
+                } else {
+                    console.log("No se puede enviar un mensaje vacío.");
+                }
+            } else {
+                console.warn("El WebSocket aún no está conectado.");
+            }
+        }
+
+        function showMessage(message) {
+            var messageArea = document.getElementById("messageArea");
+            var messageElement = document.createElement('p');
+            messageElement.innerHTML = `<strong>${message.sender}:</strong> ${message.content}`;
+            messageArea.appendChild(messageElement);
+        }
+
+        connect();
+    </script>
+</body>
+</html>
